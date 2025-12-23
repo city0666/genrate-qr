@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Generator with Download</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 50px; background-color: #f4f4f9; }
+        .container { background: white; padding: 30px; border-radius: 12px; display: inline-block; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        input { padding: 12px; width: 280px; margin-bottom: 20px; border: 1px solid #ddd; border-radius: 6px; outline: none; }
+        button { padding: 12px 24px; cursor: pointer; border: none; border-radius: 6px; font-weight: bold; transition: 0.3s; margin: 5px; }
+        .gen-btn { background: #007bff; color: white; }
+        .gen-btn:hover { background: #0056b3; }
+        .dl-btn { background: #28a745; color: white; display: none; }
+        .dl-btn:hover { background: #218838; }
+        #qrcode-container { margin-top: 25px; }
+        img { border: 1px solid #eee; padding: 15px; background: white; border-radius: 8px; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>QR Code Generator</h1>
+        <p>Enter a link to generate and download:</p>
+
+        <input type="text" id="qr-text" placeholder="https://eliteintlqatar.com/">
+        <br>
+        <button class="gen-btn" onclick="generateQR()">Generate QR Code</button>
+        <button id="download-btn" class="dl-btn" onclick="downloadQR()">Download Image</button>
+
+        <div id="qrcode-container">
+            <img id="qr-image" src="" style="display:none;">
+        </div>
+    </div>
+
+    <script>
+        function generateQR() {
+            const link = document.getElementById('qr-text').value;
+            const qrImg = document.getElementById('qr-image');
+            const dlBtn = document.getElementById('download-btn');
+            
+            if (link.trim() !== "") {
+                // Using a reliable API
+                const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(link)}`;
+                qrImg.src = apiUrl;
+                qrImg.style.display = "inline-block";
+                dlBtn.style.display = "inline-block"; // Show download button
+            } else {
+                alert("Please enter a link first!");
+            }
+        }
+
+        async function downloadQR() {
+            const qrImg = document.getElementById('qr-image');
+            const link = document.getElementById('qr-text').value;
+            
+            if (!qrImg.src) return;
+
+            try {
+                // Fetch the image data to bypass browser security restrictions
+                const response = await fetch(qrImg.src);
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                
+                // Create a temporary hidden link to trigger the download
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = "qrcode.png"; 
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            } catch (error) {
+                alert("Download failed. Please try right-clicking the image and 'Save Image As'.");
+            }
+        }
+    </script>
+
+</body>
+</html>

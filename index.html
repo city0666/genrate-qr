@@ -3,78 +3,134 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR Generator with Download</title>
+    <title>QR Designer Pro - Custom Border</title>
+    <script src="https://cdn.jsdelivr.net/gh/ushelp/EasyQRCodeJS@master/dist/easy.qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 50px; background-color: #f4f4f9; }
-        .container { background: white; padding: 30px; border-radius: 12px; display: inline-block; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        input { padding: 12px; width: 280px; margin-bottom: 20px; border: 1px solid #ddd; border-radius: 6px; outline: none; }
-        button { padding: 12px 24px; cursor: pointer; border: none; border-radius: 6px; font-weight: bold; transition: 0.3s; margin: 5px; }
+        body { font-family: 'Segoe UI', sans-serif; text-align: center; padding: 30px; background-color: #f0f2f5; }
+        .container { background: white; padding: 25px; border-radius: 15px; display: inline-block; box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-width: 450px; }
+        
+        h2 { margin-top: 0; color: #333; }
+        input[type="text"] { padding: 12px; width: 85%; margin-bottom: 20px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; }
+        
+        .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; background: #fafafa; padding: 15px; border-radius: 10px; text-align: left; }
+        .setting-item { display: flex; flex-direction: column; font-size: 13px; font-weight: bold; color: #555; }
+        input[type="color"] { border: none; width: 100%; height: 35px; cursor: pointer; background: none; margin-top: 5px; }
+        input[type="range"] { margin-top: 10px; cursor: pointer; }
+
+        .btn-group { display: flex; gap: 10px; justify-content: center; }
+        button { flex: 1; padding: 12px; cursor: pointer; border: none; border-radius: 8px; font-weight: bold; transition: 0.2s; }
         .gen-btn { background: #007bff; color: white; }
-        .gen-btn:hover { background: #0056b3; }
         .dl-btn { background: #28a745; color: white; display: none; }
-        .dl-btn:hover { background: #218838; }
-        #qrcode-container { margin-top: 25px; }
-        img { border: 1px solid #eee; padding: 15px; background: white; border-radius: 8px; }
+        
+        /* DOWNLOAD AREA */
+        #final-capture-area {
+            display: inline-block;
+            padding: 40px; /* Outer margin */
+            background-color: #ffffff;
+            margin-top: 20px;
+        }
+
+        /* BORDER BOX */
+        #qr-border-box { 
+            display: inline-block; 
+            padding: 25px; /* Inner space */
+            border: 15px solid #802020; /* Width updated by JS */
+            line-height: 0;
+            background-color: #ffffff;
+        }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h1>QR Code Generator</h1>
-        <p>Enter a link to generate and download:</p>
+        <h2>QR Designer Pro</h2>
+        <input type="text" id="qr-text" placeholder="Enter link (e.g. eliteintlqatar.com)" oninput="updateQR()">
 
-        <input type="text" id="qr-text" placeholder="https://eliteintlqatar.com/">
+        <div class="settings-grid">
+            <div class="setting-item">
+                <label>QR & Border Color</label>
+                <input type="color" id="main-color" value="#802020" onchange="updateQR()">
+            </div>
+            <div class="setting-item">
+                <label>Background Color</label>
+                <input type="color" id="bg-color" value="#ffffff" onchange="updateQR()">
+            </div>
+            <div class="setting-item" style="grid-column: span 2;">
+                <label id="border-label">Border Width: 15px</label>
+                <input type="range" id="border-width" min="0" max="50" value="15" oninput="updateQR()">
+            </div>
+        </div>
+
+        <div class="btn-group">
+            <button class="gen-btn" onclick="updateQR()">Refresh QR</button>
+            <button id="download-btn" class="dl-btn" onclick="downloadBrandedQR()">Download Image</button>
+        </div>
+
         <br>
-        <button class="gen-btn" onclick="generateQR()">Generate QR Code</button>
-        <button id="download-btn" class="dl-btn" onclick="downloadQR()">Download Image</button>
-
-        <div id="qrcode-container">
-            <img id="qr-image" src="" style="display:none;">
+        <div id="final-capture-area" style="display: none;">
+            <div id="qr-border-box">
+                <div id="qrcode"></div>
+            </div>
         </div>
     </div>
 
     <script>
-        function generateQR() {
-            const link = document.getElementById('qr-text').value;
-            const qrImg = document.getElementById('qr-image');
-            const dlBtn = document.getElementById('download-btn');
+        let qrCodeInstance = null;
+
+        function updateQR() {
+            const text = document.getElementById('qr-text').value;
+            const mainColor = document.getElementById('main-color').value;
+            const bgColor = document.getElementById('bg-color').value;
+            const borderWidth = document.getElementById('border-width').value;
             
-            if (link.trim() !== "") {
-                // Using a reliable API
-                const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(link)}`;
-                qrImg.src = apiUrl;
-                qrImg.style.display = "inline-block";
-                dlBtn.style.display = "inline-block"; // Show download button
-            } else {
-                alert("Please enter a link first!");
-            }
+            // Update labels
+            document.getElementById('border-label').innerText = `Border Width: ${borderWidth}px`;
+
+            if (text.trim() === "") return;
+
+            const qrDiv = document.getElementById('qrcode');
+            const captureArea = document.getElementById('final-capture-area');
+            const borderBox = document.getElementById('qr-border-box');
+
+            qrDiv.innerHTML = ""; // Clear old QR
+
+            // Create new QR locally
+            qrCodeInstance = new QRCode(qrDiv, {
+                text: text,
+                width: 250,
+                height: 250,
+                colorDark: mainColor,
+                colorLight: bgColor,
+                correctLevel: QRCode.CorrectLevel.H,
+                quietZone: 0
+            });
+
+            // Update UI Styling
+            captureArea.style.display = "inline-block";
+            captureArea.style.backgroundColor = bgColor;
+            
+            borderBox.style.border = `${borderWidth}px solid ${mainColor}`;
+            borderBox.style.backgroundColor = bgColor;
+            
+            document.getElementById('download-btn').style.display = "block";
         }
 
-        async function downloadQR() {
-            const qrImg = document.getElementById('qr-image');
-            const link = document.getElementById('qr-text').value;
+        function downloadBrandedQR() {
+            const element = document.getElementById('final-capture-area');
             
-            if (!qrImg.src) return;
-
-            try {
-                // Fetch the image data to bypass browser security restrictions
-                const response = await fetch(qrImg.src);
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                
-                // Create a temporary hidden link to trigger the download
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = "qrcode.png"; 
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-            } catch (error) {
-                alert("Download failed. Please try right-clicking the image and 'Save Image As'.");
-            }
+            // High-res snapshot
+            html2canvas(element, {
+                scale: 3, 
+                backgroundColor: null,
+                useCORS: true
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'custom-branded-qr.png';
+                link.href = canvas.toDataURL("image/png");
+                link.click();
+            });
         }
     </script>
-
 </body>
 </html>
